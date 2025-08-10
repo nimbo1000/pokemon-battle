@@ -71,16 +71,16 @@ export const DebugInfo: React.FC = () => {
       console.log('🧪 All battles in database:', allData);
       
       if (!allData || allData.length === 0) {
-        setTestResult('No battles found. Creating initial Bulbasaur vs Pikachu...');
+        setTestResult('No battles found. Creating initial battle...');
         
         const { data: insertData, error: insertError } = await supabase
           .from('pokemon_votes')
           .insert({ 
             pokemon1_id: 1,
-            pokemon1_name: 'bulbasaur',
-            pokemon1_votes: 0,
+                        pokemon1_name: 'pokemon-1',
+            pokemon1_votes: 0, 
             pokemon2_id: 25,
-            pokemon2_name: 'pikachu',
+            pokemon2_name: 'pokemon-25',
             pokemon2_votes: 0
           })
           .select()

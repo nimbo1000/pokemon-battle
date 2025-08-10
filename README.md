@@ -1,33 +1,33 @@
 # Pokémon Battle Royale 🥊⚡
 
-A React TypeScript application where users vote between two Pokémon (Bulbasaur vs Pikachu) with real-time vote updates across all users using WebSocket-like functionality.
+A React TypeScript application where users vote between two Pokémon (Bulbasaur vs Pikachu) with **real-time vote updates across all users** using **Supabase WebSocket connections** and localStorage fallback.
 
-![Pokemon Battle Royale](https://img.shields.io/badge/Pokemon-Battle%20Royale-blue?style=for-the-badge&logo=pokemon)
-![React](https://img.shields.io/badge/React-18-blue?style=flat&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript)
-![Vite](https://img.shields.io/badge/Vite-5-purple?style=flat&logo=vite)
+🌐 **Live Demo**: [pokemon-battle-vav4.onrender.com](http://pokemon-battle-vav4.onrender.com/)
 
 ## ✨ Features
 
-### Core Requirements ✅
 - **Live Pokémon Display**: Fetches Bulbasaur vs Pikachu from PokéAPI with sprites, stats, and info
 - **Voting System**: One vote per user with instant feedback and result visualization
-- **Real-time Vote Syncing**: Live vote updates across all users using localStorage + Storage API
+- **Real-time Vote Syncing**: Live vote updates across all users using **Supabase WebSocket connections**
 - **React State Management**: Clean implementation using hooks (useState, useEffect, useCallback)
 - **Error Handling**: Graceful loading states and API failure handling
 
-### Bonus Features 🎁
 - **New Battle Button**: Generate random Pokémon battles
 - **Smooth Animations**: Framer Motion transitions and micro-interactions
 - **Duplicate Vote Warning**: Prevents and warns about multiple voting attempts
-- **Beautiful UI**: Modern glassmorphism design with responsive layout
-- **Cross-tab Sync**: Real-time updates across multiple browser tabs
+- **Cross-device Sync**: Real-time updates across all devices and browsers
+- **localStorage Fallback**: Works offline with cross-tab synchronization
 
 ## 🚀 Quick Start
 
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
+
 ```bash
-# Clone and setup
-cd pokemon-battle-app
+# Install dependencies
 npm install
 
 # Start development server
@@ -36,31 +36,29 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173) to view the app.
 
+### Environment Setup (Required for Full Functionality)
+
+For **real-time vote synchronization across all users**, create a `.env.local` file:
+
+```bash
+cp env.example .env.local
+# Edit .env.local with your Supabase credentials
+```
+
+**Without Supabase setup**: The app will work with localStorage fallback (cross-tab only)
+**With Supabase setup**: Full real-time sync across all devices and users
+
+See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed setup instructions.
+
 ## 🏗️ Tech Stack
 
 - **React 18** with TypeScript
 - **Vite** for fast development and building
 - **Framer Motion** for smooth animations
 - **PokéAPI** for Pokémon data
-- **localStorage + Storage API** for real-time cross-tab sync
+- **Supabase** for real-time WebSocket connections and database
+- **localStorage + Storage API** for offline fallback and cross-tab sync
 - **Lucide React** for beautiful icons
-
-## 📁 Project Structure
-
-```
-src/
-├── components/
-│   ├── PokemonBattle.tsx    # Main battle component
-│   ├── PokemonCard.tsx      # Individual Pokémon display
-│   └── LoadingSpinner.tsx   # Loading animation
-├── services/
-│   ├── pokemonApi.ts        # PokéAPI integration
-│   ├── voteService.ts       # Vote management with localStorage
-│   └── supabase.ts          # Optional Supabase real-time (advanced)
-├── types/
-│   └── pokemon.ts           # TypeScript interfaces
-└── App.tsx                  # Main app component
-```
 
 ## 🎮 How to Use
 
@@ -68,23 +66,31 @@ src/
 2. **Cast Your Vote**: Click the vote button for your preferred Pokémon
 3. **See Results**: Watch real-time vote counts and percentages with animated bars
 4. **Try New Battles**: Click "New Battle" for random Pokémon matchups
-5. **Reset Votes**: Use "Reset Votes" to start fresh
-6. **Test Real-time**: Open multiple tabs to see live vote synchronization
+5. **Reset to Default**: Use "Reset to Default" to return to Bulbasaur vs Pikachu
+6. **Test Real-time**: Open multiple tabs or devices to see live vote synchronization
 
 ## 🔧 Real-time Implementation
 
-The app fulfills the "WebSocket without server" requirement using two approaches:
+The app provides **true real-time vote synchronization** using **Supabase WebSocket connections**:
 
-### Primary: localStorage + Storage API
-- Uses browser's `storage` events for cross-tab communication
-- Simulates real-time WebSocket functionality
-- Works immediately without any setup
-- Perfect for demonstration and development
+### Primary: Supabase Real-time WebSockets
+- **True WebSocket connections** via Supabase real-time subscriptions
+- **Cross-device synchronization** - votes sync across all users worldwide
+- **Persistent database storage** - votes are saved and retrieved from Supabase
+- **Battle-specific tracking** - each Pokémon pair has independent vote tracking
+- **Automatic reconnection** - handles network interruptions gracefully
 
-### Optional: Supabase WebSocket
-- True WebSocket connections via Supabase real-time
-- Cross-device synchronization
-- Requires setup (see [SUPABASE_SETUP.md](./SUPABASE_SETUP.md))
+### Fallback: localStorage + Storage API
+- **Offline functionality** when Supabase is not configured
+- **Cross-tab synchronization** using browser storage events
+- **Immediate setup** - works without any configuration
+- **Perfect for development** and demonstration purposes
+
+### How It Works
+1. **Vote Submission**: Votes are sent to Supabase database
+2. **Real-time Broadcast**: Supabase broadcasts updates to all connected clients
+3. **Instant UI Updates**: All users see vote changes in real-time
+4. **Fallback Mode**: If Supabase is unavailable, uses localStorage for local sync
 
 ## 🐛 Debug Mode
 
@@ -103,48 +109,4 @@ The app includes comprehensive debugging features that can be controlled via env
 - **Console Logging**: Detailed logs for vote updates, battle changes, and subscription events
 - **Manual Refresh**: Test buttons to manually refresh votes and test connections
 - **Battle ID Tracking**: Visual display of current battle ID and Pokémon IDs
-
-## 🎨 Design Features
-
-- **Glassmorphism UI**: Modern translucent cards with backdrop blur
-- **Gradient Backgrounds**: Beautiful purple-blue gradients
-- **Smooth Animations**: Micro-interactions and state transitions
-- **Responsive Design**: Works perfectly on desktop, tablet, and mobile
-- **Interactive Elements**: Hover effects, scale animations, and visual feedback
-- **Winner Celebration**: Crown badges and special highlighting for winners
-
-## 📱 Responsive Design
-
-The app is fully responsive with:
-- **Desktop**: Side-by-side Pokémon cards with VS divider
-- **Tablet**: Optimized layout with adjusted spacing
-- **Mobile**: Stacked layout with reordered VS divider
-
-## 🧩 State Management
-
-Clean React patterns using:
-- `useState` for component state
-- `useEffect` for side effects and subscriptions
-- `useCallback` for memoized functions
-- Custom hooks pattern for reusable logic
-- Predictable state updates with error boundaries
-
-## 🚀 Performance
-
-- **Fast API calls**: Parallel fetching of Pokémon data
-- **Optimized renders**: Memoized components and callbacks
-- **Lazy loading**: Efficient image loading with fallbacks
-- **Small bundle**: Tree-shaking and modern build tools
-
-## 🔮 Future Enhancements
-
-- [ ] Pokémon type advantages calculation
-- [ ] Battle history and statistics
-- [ ] User profiles and avatars
-- [ ] Tournament bracket system
-- [ ] Sound effects and music
-- [ ] Share results on social media
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
+- **Supabase Integration**: Test database connections and real-time subscriptions

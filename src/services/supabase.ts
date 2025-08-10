@@ -58,10 +58,10 @@ export const getVotes = async (pokemon1Id?: number, pokemon2Id?: number): Promis
         .from('pokemon_votes')
         .insert({ 
           pokemon1_id: pokemon1Id,
-          pokemon1_name: pokemon1Id === 1 ? 'bulbasaur' : `pokemon-${pokemon1Id}`,
+          pokemon1_name: `pokemon-${pokemon1Id}`,
           pokemon1_votes: 0, 
           pokemon2_id: pokemon2Id,
-          pokemon2_name: pokemon2Id === 25 ? 'pikachu' : `pokemon-${pokemon2Id}`,
+          pokemon2_name: `pokemon-${pokemon2Id}`,
           pokemon2_votes: 0 
         })
         .select()
@@ -86,16 +86,16 @@ export const getVotes = async (pokemon1Id?: number, pokemon2Id?: number): Promis
     
     if (selectError) {
       if (selectError.code === 'PGRST116') {
-        // No battles exist, create initial Bulbasaur vs Pikachu
-        console.log('No battles found, creating initial Bulbasaur vs Pikachu...');
+        // No battles exist, create initial battle with placeholder names
+        console.log('No battles found, creating initial battle...');
         const { data: insertData, error: insertError } = await supabase
           .from('pokemon_votes')
           .insert({ 
             pokemon1_id: 1,
-            pokemon1_name: 'bulbasaur',
+            pokemon1_name: 'pokemon-1',
             pokemon1_votes: 0, 
             pokemon2_id: 25,
-            pokemon2_name: 'pikachu',
+            pokemon2_name: 'pokemon-25',
             pokemon2_votes: 0 
           })
           .select()
@@ -131,10 +131,10 @@ export const incrementVote = async (pokemon: 'pokemon1' | 'pokemon2', pokemon1Id
       // Initialize if no votes exist for this battle
       const initialVotes = {
         pokemon1_id: pokemon1Id || 1,
-        pokemon1_name: pokemon1Id === 1 ? 'bulbasaur' : `pokemon-${pokemon1Id}`,
+        pokemon1_name: `pokemon-${pokemon1Id || 1}`,
         pokemon1_votes: pokemon === 'pokemon1' ? 1 : 0,
         pokemon2_id: pokemon2Id || 25,
-        pokemon2_name: pokemon2Id === 25 ? 'pikachu' : `pokemon-${pokemon2Id}`,
+        pokemon2_name: `pokemon-${pokemon2Id || 25}`,
         pokemon2_votes: pokemon === 'pokemon2' ? 1 : 0,
         updated_at: new Date().toISOString()
       };
@@ -184,99 +184,20 @@ export const incrementVote = async (pokemon: 'pokemon1' | 'pokemon2', pokemon1Id
   }
 };
 
-export const resetVotes = async (pokemon1Id?: number, pokemon2Id?: number): Promise<VoteUpdate | null> => {
-  try {
-    // If we have specific Pokémon IDs, reset that battle
-    if (pokemon1Id && pokemon2Id) {
-      const existingBattle = await getVotes(pokemon1Id, pokemon2Id);
-      if (existingBattle) {
-        const { data, error } = await supabase
-          .from('pokemon_votes')
-          .update({
-            pokemon1_votes: 0,
-            pokemon2_votes: 0,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingBattle.id)
-          .select()
-          .single();
-          
-        if (error) {
-          console.error('Error resetting specific battle votes:', error);
-          return null;
-        }
-        
-        return data as VoteUpdate;
-      }
-    }
-    
-    // Fallback: reset the most recent battle
-    const { data: allData, error: selectError } = await supabase
-      .from('pokemon_votes')
-      .select('*')
-      .order('battle_started_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (selectError) {
-      console.error('Error finding battle to reset:', selectError);
-      return null;
-    }
-    
-    const { data, error } = await supabase
-      .from('pokemon_votes')
-      .update({
-        pokemon1_votes: 0,
-        pokemon2_votes: 0,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', allData.id)
-      .select()
-      .single();
-      
-    if (error) {
-      console.error('Error resetting votes:', error);
-      return null;
-    }
-    
-    return data as VoteUpdate;
-  } catch (error) {
-    console.error('Error in resetVotes:', error);
-    return null;
-  }
-};
+
 
 export const startNewBattle = async (pokemon1: { id: number; name: string }, pokemon2: { id: number; name: string }): Promise<VoteUpdate | null> => {
   try {
     console.log(`Starting new battle: ${pokemon1.name} vs ${pokemon2.name}`);
     
-    // First check if this battle already exists
+    // Check if this battle already exists
     const existingBattle = await getVotes(pokemon1.id, pokemon2.id);
     if (existingBattle) {
-      console.log('Battle already exists, resetting votes:', existingBattle);
-      // Reset votes for existing battle
-      const { data, error } = await supabase
-        .from('pokemon_votes')
-        .update({
-          pokemon1_votes: 0,
-          pokemon2_votes: 0,
-          battle_started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingBattle.id)
-        .select()
-        .single();
-        
-      if (error) {
-        console.error('Error resetting existing battle:', error);
-        return null;
-      }
-      
-      console.log('Existing battle reset successfully:', data);
-      return data as VoteUpdate;
+      console.log('Battle already exists, returning existing battle:', existingBattle);
+      return existingBattle;
     }
     
-    // Create new battle (let the database auto-generate the ID)
+    // Create new battle only if it doesn't exist
     const newBattleData = {
       pokemon1_id: pokemon1.id,
       pokemon1_name: pokemon1.name,

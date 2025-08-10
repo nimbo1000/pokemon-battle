@@ -1,8 +1,19 @@
 {
-  "name": "pokemon-battle-app",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "pokemon-battle-royale",
+  "private": false,
+  "version": "1.0.0",
+  "description": "A React TypeScript application where users vote between Pokémon with real-time updates using WebSocket-like functionality",
+  "keywords": [
+    "pokemon",
+    "battle",
+    "react",
+    "typescript",
+    "realtime",
+    "voting",
+    "websocket",
+    "supabase",
+    "framer-motion"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

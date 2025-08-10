@@ -13,7 +13,6 @@ const isSupabaseConfigured = () => {
 let supabaseFunctions: {
   getVotes: (pokemon1Id?: number, pokemon2Id?: number) => Promise<VoteUpdate | null>;
   incrementVote: (pokemon: 'pokemon1' | 'pokemon2', pokemon1Id?: number, pokemon2Id?: number) => Promise<VoteUpdate | null>;
-  resetVotes: (pokemon1Id?: number, pokemon2Id?: number) => Promise<VoteUpdate | null>;
   startNewBattle: (pokemon1: { id: number; name: string }, pokemon2: { id: number; name: string }) => Promise<VoteUpdate | null>;
   subscribeToVotes: (callback: (votes: VoteUpdate) => void, battleId?: number) => { unsubscribe: () => void };
 } | null = null;
@@ -26,7 +25,6 @@ const getSupabaseFunctions = async () => {
       supabaseFunctions = {
         getVotes: supabaseModule.getVotes,
         incrementVote: supabaseModule.incrementVote,
-        resetVotes: supabaseModule.resetVotes,
         startNewBattle: supabaseModule.startNewBattle,
         subscribeToVotes: supabaseModule.subscribeToVotes
       };
@@ -45,7 +43,7 @@ const getSupabaseFunctions = async () => {
 // This simulates real-time functionality across browser tabs using storage events
 
 const VOTES_KEY = 'pokemon_battle_votes';
-const USER_VOTE_KEY = 'pokemon_battle_user_vote';
+const USER_VOTES_KEY = 'pokemon_battle_user_votes'; // Store all user votes per battle
 
 interface StoredVotes {
   id?: number;
@@ -63,45 +61,74 @@ interface StoredVotes {
 const getDefaultVotes = (): StoredVotes => ({
   id: 1,
   pokemon1_id: 1,
-  pokemon1_name: 'bulbasaur',
+  pokemon1_name: 'pokemon-1',
   pokemon1_votes: 0,
   pokemon2_id: 25,
-  pokemon2_name: 'pikachu',
+  pokemon2_name: 'pokemon-25',
   pokemon2_votes: 0,
   battle_started_at: new Date().toISOString(),
   updated_at: new Date().toISOString()
 });
 
+// Helper function to create battle key
+const getBattleKey = (pokemon1Id: number, pokemon2Id: number): string => {
+  // Sort IDs to ensure consistent key regardless of order
+  const [id1, id2] = [pokemon1Id, pokemon2Id].sort((a, b) => a - b);
+  return `${id1}-${id2}`;
+};
+
 // localStorage implementation
-const getLocalVotes = (): VoteUpdate => {
-  const stored = localStorage.getItem(VOTES_KEY);
-  if (!stored) {
-    const defaultVotes = getDefaultVotes();
-    localStorage.setItem(VOTES_KEY, JSON.stringify(defaultVotes));
-    return defaultVotes;
+const getLocalVotes = (pokemon1Id?: number, pokemon2Id?: number): VoteUpdate => {
+  if (!pokemon1Id || !pokemon2Id) {
+    // Fallback to default votes if no IDs provided
+    const stored = localStorage.getItem(VOTES_KEY);
+    if (!stored) {
+      const defaultVotes = getDefaultVotes();
+      localStorage.setItem(VOTES_KEY, JSON.stringify(defaultVotes));
+      return defaultVotes;
+    }
+    return JSON.parse(stored);
   }
+
+  const battleKey = getBattleKey(pokemon1Id, pokemon2Id);
+  const stored = localStorage.getItem(`${VOTES_KEY}_${battleKey}`);
+  
+  if (!stored) {
+    // Create new battle entry
+    const newBattle: StoredVotes = {
+      id: Date.now(), // Use timestamp as ID for localStorage
+      pokemon1_id: pokemon1Id,
+      pokemon1_name: `pokemon-${pokemon1Id}`,
+      pokemon1_votes: 0,
+      pokemon2_id: pokemon2Id,
+      pokemon2_name: `pokemon-${pokemon2Id}`,
+      pokemon2_votes: 0,
+      battle_started_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    localStorage.setItem(`${VOTES_KEY}_${battleKey}`, JSON.stringify(newBattle));
+    return newBattle;
+  }
+  
   return JSON.parse(stored);
 };
 
-const incrementLocalVote = (pokemon: 'pokemon1' | 'pokemon2'): VoteUpdate => {
-  const currentVotes = getLocalVotes();
+const incrementLocalVote = (pokemon: 'pokemon1' | 'pokemon2', pokemon1Id: number, pokemon2Id: number): VoteUpdate => {
+  const currentVotes = getLocalVotes(pokemon1Id, pokemon2Id);
+  const battleKey = getBattleKey(pokemon1Id, pokemon2Id);
+  
   const updatedVotes: StoredVotes = {
-    id: currentVotes.id,
-    pokemon1_id: currentVotes.pokemon1_id,
-    pokemon1_name: currentVotes.pokemon1_name,
+    ...currentVotes,
     pokemon1_votes: pokemon === 'pokemon1' ? currentVotes.pokemon1_votes + 1 : currentVotes.pokemon1_votes,
-    pokemon2_id: currentVotes.pokemon2_id,
-    pokemon2_name: currentVotes.pokemon2_name,
     pokemon2_votes: pokemon === 'pokemon2' ? currentVotes.pokemon2_votes + 1 : currentVotes.pokemon2_votes,
-    battle_started_at: currentVotes.battle_started_at,
     updated_at: new Date().toISOString()
   };
   
-  localStorage.setItem(VOTES_KEY, JSON.stringify(updatedVotes));
+  localStorage.setItem(`${VOTES_KEY}_${battleKey}`, JSON.stringify(updatedVotes));
   
   // Trigger storage event for cross-tab synchronization
   window.dispatchEvent(new StorageEvent('storage', {
-    key: VOTES_KEY,
+    key: `${VOTES_KEY}_${battleKey}`,
     newValue: JSON.stringify(updatedVotes),
     storageArea: localStorage
   }));
@@ -109,22 +136,7 @@ const incrementLocalVote = (pokemon: 'pokemon1' | 'pokemon2'): VoteUpdate => {
   return updatedVotes;
 };
 
-const resetLocalVotes = (): VoteUpdate => {
-  const resetData = getDefaultVotes();
-  localStorage.setItem(VOTES_KEY, JSON.stringify(resetData));
-  
-  // Clear user vote as well
-  localStorage.removeItem(USER_VOTE_KEY);
-  
-  // Trigger storage event
-  window.dispatchEvent(new StorageEvent('storage', {
-    key: VOTES_KEY,
-    newValue: JSON.stringify(resetData),
-    storageArea: localStorage
-  }));
-  
-  return resetData;
-};
+
 
 // Unified functions that automatically choose between Supabase and localStorage
 export const getVotes = async (pokemon1Id?: number, pokemon2Id?: number): Promise<VoteUpdate> => {
@@ -144,7 +156,7 @@ export const getVotes = async (pokemon1Id?: number, pokemon2Id?: number): Promis
   }
   
   console.log('📊 Getting votes from localStorage...');
-  const localVotes = getLocalVotes();
+  const localVotes = getLocalVotes(pokemon1Id, pokemon2Id);
   console.log('✅ Got votes from localStorage:', localVotes);
   return localVotes;
 };
@@ -166,39 +178,41 @@ export const incrementVote = async (pokemon: 'pokemon1' | 'pokemon2', pokemon1Id
   }
   
   console.log(`🗳️ Incrementing vote for ${pokemon} via localStorage...`);
-  const result = incrementLocalVote(pokemon);
+  const result = incrementLocalVote(pokemon, pokemon1Id!, pokemon2Id!);
   console.log('✅ Vote incremented via localStorage:', result);
   return result;
 };
 
-export const resetVotes = async (pokemon1Id?: number, pokemon2Id?: number): Promise<VoteUpdate> => {
-  const supabaseFuncs = await getSupabaseFunctions();
-  
-  if (supabaseFuncs) {
-    try {
-      const result = await supabaseFuncs.resetVotes(pokemon1Id, pokemon2Id);
-      if (result) {
-        return result;
-      }
-    } catch (error) {
-      console.error('Supabase resetVotes failed, falling back to localStorage:', error);
-    }
+
+
+export const getUserVote = (pokemon1Id?: number, pokemon2Id?: number): 'pokemon1' | 'pokemon2' | null => {
+  if (!pokemon1Id || !pokemon2Id) {
+    return null;
   }
   
-  return resetLocalVotes();
-};
-
-export const getUserVote = (): 'pokemon1' | 'pokemon2' | null => {
-  const vote = localStorage.getItem(USER_VOTE_KEY);
+  const battleKey = getBattleKey(pokemon1Id, pokemon2Id);
+  const vote = localStorage.getItem(`${USER_VOTES_KEY}_${battleKey}`);
   return vote as 'pokemon1' | 'pokemon2' | null;
 };
 
-export const setUserVote = (pokemon: 'pokemon1' | 'pokemon2'): void => {
-  localStorage.setItem(USER_VOTE_KEY, pokemon);
+export const setUserVote = (pokemon: 'pokemon1' | 'pokemon2', pokemon1Id: number, pokemon2Id: number): void => {
+  const battleKey = getBattleKey(pokemon1Id, pokemon2Id);
+  localStorage.setItem(`${USER_VOTES_KEY}_${battleKey}`, pokemon);
 };
 
-export const clearUserVote = (): void => {
-  localStorage.removeItem(USER_VOTE_KEY);
+export const clearUserVote = (pokemon1Id?: number, pokemon2Id?: number): void => {
+  if (!pokemon1Id || !pokemon2Id) {
+    // Clear all user votes if no specific battle provided
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(USER_VOTES_KEY)) {
+        localStorage.removeItem(key);
+      }
+    });
+    return;
+  }
+  
+  const battleKey = getBattleKey(pokemon1Id, pokemon2Id);
+  localStorage.removeItem(`${USER_VOTES_KEY}_${battleKey}`);
 };
 
 // Subscribe to real-time vote updates
@@ -214,10 +228,10 @@ export const subscribeToVotes = async (callback: (votes: VoteUpdate) => void, ba
         const voteData: VoteUpdate = {
           id: votes.id,
           pokemon1_id: votes.pokemon1_id || 1,
-          pokemon1_name: votes.pokemon1_name || 'bulbasaur',
+          pokemon1_name: votes.pokemon1_name || 'pokemon-1',
           pokemon1_votes: votes.pokemon1_votes || 0,
           pokemon2_id: votes.pokemon2_id || 25,
-          pokemon2_name: votes.pokemon2_name || 'pikachu',
+          pokemon2_name: votes.pokemon2_name || 'pokemon-25',
           pokemon2_votes: votes.pokemon2_votes || 0,
           battle_started_at: votes.battle_started_at || new Date().toISOString(),
           updated_at: votes.updated_at
@@ -238,7 +252,8 @@ export const subscribeToVotes = async (callback: (votes: VoteUpdate) => void, ba
   // Fallback to localStorage storage events
   console.log('🔌 Using localStorage subscription...');
   const handleStorageChange = (event: StorageEvent) => {
-    if (event.key === VOTES_KEY && event.newValue) {
+    // Listen to all vote-related storage changes
+    if (event.key && event.key.startsWith(VOTES_KEY) && event.newValue) {
       const updatedVotes = JSON.parse(event.newValue);
       console.log('📡 Received localStorage update:', updatedVotes);
       callback(updatedVotes);
@@ -254,6 +269,6 @@ export const subscribeToVotes = async (callback: (votes: VoteUpdate) => void, ba
 };
 
 // Additional utility for detecting duplicate votes across tabs
-export const checkForDuplicateVote = (): boolean => {
-  return getUserVote() !== null;
+export const checkForDuplicateVote = (pokemon1Id?: number, pokemon2Id?: number): boolean => {
+  return getUserVote(pokemon1Id, pokemon2Id) !== null;
 }; 
