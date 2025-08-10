@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shuffle, RotateCcw, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Shuffle, AlertTriangle } from 'lucide-react';
 import { PokemonCard } from './PokemonCard';
 import { LoadingSpinner } from './LoadingSpinner';
 import { fetchBulbasaurAndPikachu, fetchRandomBattle } from '../services/pokemonApi';
@@ -34,34 +34,7 @@ export const PokemonBattle: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [currentBattleId, setCurrentBattleId] = useState<number | null>(null);
 
-  // Manual refresh function for debugging
-  const refreshVotes = useCallback(async () => {
-    try {
-      console.log('🔄 Manually refreshing votes...');
-      console.log(`🔄 Current Pokémon: ${battleState.pokemon1?.id} vs ${battleState.pokemon2?.id}`);
-      
-      const currentVotes = await getVotes(
-        battleState.pokemon1?.id, 
-        battleState.pokemon2?.id
-      );
-      
-      console.log('🔄 Refresh result:', currentVotes);
-      
-      if (currentVotes) {
-        setBattleState(prev => ({
-          ...prev,
-          votes: {
-            pokemon1: currentVotes.pokemon1_votes,
-            pokemon2: currentVotes.pokemon2_votes
-          }
-        }));
-        setDebugInfo(`Manual refresh: ${JSON.stringify(currentVotes)}`);
-      }
-    } catch (error) {
-      console.error('Error refreshing votes:', error);
-      setDebugInfo(`Refresh error: ${error}`);
-    }
-  }, [battleState.pokemon1?.id, battleState.pokemon2?.id]);
+
 
   // Load initial Pokémon and vote data
   const loadInitialData = useCallback(async () => {
@@ -173,32 +146,7 @@ export const PokemonBattle: React.FC = () => {
     }
   }, []);
 
-  // Handle reset votes
-  const handleResetVotes = useCallback(async () => {
-    try {
-      const resetData = await resetVotes(
-        battleState.pokemon1?.id, 
-        battleState.pokemon2?.id
-      );
-      clearUserVote();
-      
-      setBattleState(prev => ({
-        ...prev,
-        votes: {
-          pokemon1: resetData.pokemon1_votes,
-          pokemon2: resetData.pokemon2_votes
-        },
-        hasVoted: false,
-        userVote: null,
-        error: null
-      }));
-    } catch {
-      setBattleState(prev => ({
-        ...prev,
-        error: 'Failed to reset votes. Please try again.'
-      }));
-    }
-  }, [battleState.pokemon1?.id, battleState.pokemon2?.id]);
+
 
   // Subscribe to real-time updates
   useEffect(() => {
@@ -311,26 +259,6 @@ export const PokemonBattle: React.FC = () => {
             <Shuffle size={20} />
             {isNewBattleLoading ? 'Starting...' : 'New Battle'}
           </motion.button>
-          
-          <motion.button
-            className="action-button reset-votes"
-            onClick={handleResetVotes}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <RotateCcw size={20} />
-            Reset Votes
-          </motion.button>
-          
-          <motion.button
-            className="action-button debug"
-            onClick={refreshVotes}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <RefreshCw size={20} />
-            Refresh Votes
-          </motion.button>
         </div>
       </motion.header>
 
@@ -426,21 +354,6 @@ export const PokemonBattle: React.FC = () => {
           <div><strong>Debug:</strong> {debugInfo}</div>
           <div><strong>Battle ID:</strong> {currentBattleId || 'None'}</div>
           <div><strong>Pokémon:</strong> {battleState.pokemon1?.id} vs {battleState.pokemon2?.id}</div>
-          <button 
-            onClick={refreshVotes}
-            style={{
-              marginTop: '5px',
-              padding: '3px 8px',
-              background: '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: '3px',
-              cursor: 'pointer',
-              fontSize: '10px'
-            }}
-          >
-            Refresh Votes
-          </button>
         </div>
       )}
     </div>
